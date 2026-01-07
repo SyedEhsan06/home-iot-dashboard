@@ -33,7 +33,6 @@ export default function RelayControl({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-APP-PIN': process.env.NEXT_PUBLIC_APP_PIN || '1234',
         },
         body: JSON.stringify({
           relay: relay.id,

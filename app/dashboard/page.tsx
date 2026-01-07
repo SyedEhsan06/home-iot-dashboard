@@ -210,26 +210,35 @@ export default function DashboardPage() {
                     className={`w-3 h-3 rounded-full ${
                       status?.online
                         ? 'bg-green-500 animate-pulse'
-                        : status?.lastSeen
+                        : status?.reported?.lastSeen
                         ? 'bg-yellow-500'
                         : 'bg-gray-500'
                     }`}
                   />
                   <p className="text-sm font-medium text-gray-300">
                     {status?.online
-                      ? 'Online'
-                      : status?.lastSeen
-                      ? 'Offline'
-                      : 'Waiting for contact'
+                      ? 'Online (MQTT Active)'
+                      : status?.reported?.lastSeen
+                      ? 'Offline (MQTT Inactive)'
+                      : 'Waiting for MQTT connection'
                     }
                   </p>
                 </div>
                 
-                {!status?.lastSeen && (
+                {status?.reported?.lastSeen && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Send a command to establish connection
+                    Last seen: {new Date(status.reported.lastSeen).toLocaleTimeString()}
+                    {' '}
+                    ({Math.floor((Date.now() - status.reported.lastSeen) / 1000)}s ago)
                   </p>
                 )}
+                
+                {!status?.online && !status?.reported?.lastSeen && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Click a relay to send MQTT command and establish connection
+                  </p>
+                )}
+                
                 {deviceInfo?.ip && (
                   <p className="text-sm text-gray-400 mt-1 font-mono">
                     IP: {deviceInfo.ip}
@@ -380,11 +389,60 @@ export default function DashboardPage() {
               <h3 className="text-blue-400 font-semibold text-lg mb-2">
                 MQTT Status Detection
               </h3>
-              <p className="text-gray-400">
+              <p className="text-gray-400 mb-4">
                 Device status is detected via MQTT messages. Send a command to establish
                 connection. Device stays "Online" for 5 minutes after last activity.
                 Status updates automatically every 3 seconds.
               </p>
+
+              {/* Debug Info */}
+              <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700/50">
+                <h4 className="text-sm font-semibold text-gray-300 mb-2">Debug Information:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500">Online Status:</span>
+                    <span className={`ml-2 font-mono ${status?.online ? 'text-green-400' : 'text-red-400'}`}>
+                      {status?.online ? 'true' : 'false'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Last Seen:</span>
+                    <span className="ml-2 font-mono text-gray-300">
+                      {status?.reported?.lastSeen
+                        ? new Date(status.reported.lastSeen).toLocaleString()
+                        : 'Never'
+                      }
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Time Since:</span>
+                    <span className="ml-2 font-mono text-gray-300">
+                      {status?.reported?.lastSeen
+                        ? `${Math.floor((Date.now() - status.reported.lastSeen) / 1000)}s ago`
+                        : 'N/A'
+                      }
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Device IP:</span>
+                    <span className="ml-2 font-mono text-gray-300">
+                      {deviceInfo?.ip || 'Unknown'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Uptime:</span>
+                    <span className="ml-2 font-mono text-gray-300">
+                      {deviceInfo?.uptime ? `${Math.floor(deviceInfo.uptime / 60)}m ${deviceInfo.uptime % 60}s` : 'Unknown'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Status:</span>
+                    <span className="ml-2 font-mono text-gray-300">
+                      {deviceInfo?.status || 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

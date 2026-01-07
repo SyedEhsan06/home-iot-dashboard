@@ -145,13 +145,6 @@ function LoginForm() {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-gray-700/50">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-              <p className="text-blue-400 text-sm text-center font-medium">
-                🔑 Default PIN: <span className="font-mono font-bold">1234</span>
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

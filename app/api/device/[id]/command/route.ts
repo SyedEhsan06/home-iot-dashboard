@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyPinFromHeader, unauthorizedResponse } from '@/lib/auth';
 import { 
   updateRelay, 
   getDesiredState,
@@ -12,11 +11,6 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Verify PIN from header
-    if (!verifyPinFromHeader(request)) {
-      return unauthorizedResponse();
-    }
-
     const { id: deviceId } = await params;
     const { relay, state } = await request.json();
 

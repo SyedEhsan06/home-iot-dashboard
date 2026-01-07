@@ -1,5 +1,7 @@
 import mqtt from 'mqtt';
 import type { DesiredState } from './redis';
+import { setReportedState } from './redis';
+import { redis } from './redis';
 
 let client: mqtt.MqttClient | null = null;
 
@@ -21,6 +23,49 @@ export function getMqttClient(): mqtt.MqttClient {
 
     client.on('connect', () => {
       console.log('✅ MQTT connected to HiveMQ Cloud');
+      // Subscribe to all reported topics
+      client.subscribe('home/+/reported', { qos: 1 }, (err) => {
+        if (err) {
+          console.error('❌ Failed to subscribe to reported topics:', err);
+        } else {
+          console.log('✅ Subscribed to device reported topics');
+        }
+      });
+    });
+
+    client.on('message', async (topic: string, message: Buffer) => {
+      try {
+        // Handle reported messages from devices
+        if (topic.endsWith('/reported')) {
+          const deviceId = topic.split('/')[1]; // Extract device ID from topic
+          const payload = JSON.parse(message.toString());
+          
+          console.log(`📡 MQTT report from ${deviceId}:`, payload);
+          
+          // Update reported state in Redis
+          await setReportedState(deviceId, {
+            relays: payload.relays || {},
+            lastSeen: Date.now(),
+          });
+          
+          // Set device as online for 5 minutes
+          await redis.setex(`device:${deviceId}:online`, 300, 'true');
+          
+          // Store device info if provided
+          if (payload.ip || payload.uptime || payload.status) {
+            await redis.set(`device:${deviceId}:info`, {
+              ip: payload.ip,
+              uptime: payload.uptime,
+              status: payload.status,
+              lastReport: Date.now(),
+            });
+          }
+          
+          console.log(`✅ Device ${deviceId} MQTT report processed`);
+        }
+      } catch (error) {
+        console.error('❌ Error processing MQTT message:', error);
+      }
     });
 
     client.on('error', (error: Error) => {

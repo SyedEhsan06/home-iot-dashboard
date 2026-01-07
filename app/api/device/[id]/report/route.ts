@@ -43,6 +43,9 @@ export async function POST(
     
     await redis.set(`device:${deviceId}:info`, deviceInfoData);
     
+    // Set device as online for 5 minutes (MQTT-based approach)
+    await redis.setex(`device:${deviceId}:online`, 300, 'true');
+    
     console.log(`✅ Device ${deviceId} reported - Uptime: ${body.uptime}s, Online: true`);
 
     return NextResponse.json({ 

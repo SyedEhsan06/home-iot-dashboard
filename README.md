@@ -71,7 +71,7 @@ Default PIN: **1234**
 - `POST /api/auth/logout` - Logout (clear cookie)
 
 ### Device Control
-- `POST /api/device/[id]/command` - Send command to device (requires X-APP-PIN header)
+- `POST /api/device/[id]/command` - Send command to device
 - `GET /api/device/[id]/status` - Get device status
 - `GET /api/device/[id]/desired` - Get desired state (for ESP polling)
 - `POST /api/device/[id]/report` - Device reports its state
@@ -133,7 +133,6 @@ Expected response:
 ```bash
 curl -X POST http://localhost:3000/api/device/room1/command \
   -H "Content-Type: application/json" \
-  -H "X-APP-PIN: 1234" \
   -d '{"relay": 1, "state": true}'
 ```
 

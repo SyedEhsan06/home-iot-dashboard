@@ -82,18 +82,34 @@ export async function updateRelay(
   return newState;
 }
 
-// Check if device is online (last seen within 30 seconds)
+// Check if device is online (has active online status or recent report)
 export async function isDeviceOnline(deviceId: string): Promise<boolean> {
-  const reported = await getReportedState(deviceId);
-  if (!reported || !reported.lastSeen) return false;
-  
-  const now = Date.now();
-  const threshold = 30 * 1000; // 30 seconds (device reports every 10s)
-  const timeSince = now - reported.lastSeen;
-  
-  console.log(`🔍 Device ${deviceId} check: Last seen ${timeSince}ms ago, Threshold: ${threshold}ms, Online: ${timeSince < threshold}`);
-  
-  return timeSince < threshold;
+  try {
+    // First check if device has active online status (MQTT-based)
+    const onlineStatus = await redis.get(`device:${deviceId}:online`);
+    if (onlineStatus === 'true') {
+      console.log(`🔍 Device ${deviceId}: Online (MQTT active)`);
+      return true;
+    }
+
+    // Fallback: check if device reported recently (within 2 minutes)
+    const reported = await getReportedState(deviceId);
+    if (reported && reported.lastSeen) {
+      const now = Date.now();
+      const threshold = 2 * 60 * 1000; // 2 minutes
+      const timeSince = now - reported.lastSeen;
+      
+      const isOnline = timeSince < threshold;
+      console.log(`🔍 Device ${deviceId}: Last seen ${timeSince}ms ago, Online: ${isOnline}`);
+      return isOnline;
+    }
+
+    console.log(`🔍 Device ${deviceId}: Offline (no recent activity)`);
+    return false;
+  } catch (error) {
+    console.error(`Error checking device online status:`, error);
+    return false;
+  }
 }
 
 // Initialize device with default state if not exists
