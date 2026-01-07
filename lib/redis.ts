@@ -82,23 +82,40 @@ export async function updateRelay(
   return newState;
 }
 
-// Check if device is online (has active online status or recent report)
+// Check if device is online (based on last report timestamp)
 export async function isDeviceOnline(deviceId: string): Promise<boolean> {
   try {
-    // First check if device has active online status (MQTT-based)
+    // Check device info for last report timestamp (most reliable)
+    const deviceInfo = await redis.get<{
+      ip?: string;
+      uptime?: number;
+      lastReport?: number;
+    }>(`device:${deviceId}:info`);
+
+    if (deviceInfo && deviceInfo.lastReport) {
+      const now = Date.now();
+      const timeSinceLastReport = now - deviceInfo.lastReport;
+      const threshold = 30 * 1000; // 30 seconds (device reports immediately on commands)
+
+      const isOnline = timeSinceLastReport < threshold;
+      console.log(`🔍 Device ${deviceId}: Last report ${timeSinceLastReport}ms ago, Threshold: ${threshold}ms, Online: ${isOnline}`);
+      return isOnline;
+    }
+
+    // Fallback: check if device has active online status (MQTT-based)
     const onlineStatus = await redis.get(`device:${deviceId}:online`);
     if (onlineStatus === 'true') {
-      console.log(`🔍 Device ${deviceId}: Online (MQTT active)`);
+      console.log(`🔍 Device ${deviceId}: Online (TTL active)`);
       return true;
     }
 
-    // Fallback: check if device reported recently (within 2 minutes)
+    // Final fallback: check reported state
     const reported = await getReportedState(deviceId);
     if (reported && reported.lastSeen) {
       const now = Date.now();
-      const threshold = 2 * 60 * 1000; // 2 minutes
+      const threshold = 30 * 1000; // 30 seconds
       const timeSince = now - reported.lastSeen;
-      
+
       const isOnline = timeSince < threshold;
       console.log(`🔍 Device ${deviceId}: Last seen ${timeSince}ms ago, Online: ${isOnline}`);
       return isOnline;

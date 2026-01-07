@@ -48,20 +48,18 @@ export function getMqttClient(): mqtt.MqttClient {
             lastSeen: Date.now(),
           });
           
-          // Set device as online for 5 minutes
-          await redis.setex(`device:${deviceId}:online`, 300, 'true');
+          // Update device info with last report timestamp
+          const deviceInfoData: any = {
+            lastReport: Date.now(),
+          };
           
-          // Store device info if provided
-          if (payload.ip || payload.uptime || payload.status) {
-            await redis.set(`device:${deviceId}:info`, {
-              ip: payload.ip,
-              uptime: payload.uptime,
-              status: payload.status,
-              lastReport: Date.now(),
-            });
-          }
+          if (payload.ip) deviceInfoData.ip = payload.ip;
+          if (payload.uptime !== undefined) deviceInfoData.uptime = payload.uptime;
+          if (payload.status) deviceInfoData.status = payload.status;
           
-          console.log(`✅ Device ${deviceId} MQTT report processed`);
+          await redis.set(`device:${deviceId}:info`, deviceInfoData);
+          
+          console.log(`✅ Device ${deviceId} MQTT report processed - Last report updated`);
         }
       } catch (error) {
         console.error('❌ Error processing MQTT message:', error);

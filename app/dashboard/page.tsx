@@ -416,10 +416,19 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Time Since:</span>
+                    <span className="text-gray-500">Last Report:</span>
                     <span className="ml-2 font-mono text-gray-300">
-                      {status?.reported?.lastSeen
-                        ? `${Math.floor((Date.now() - status.reported.lastSeen) / 1000)}s ago`
+                      {deviceInfo?.lastReport
+                        ? new Date(deviceInfo.lastReport).toLocaleString()
+                        : 'Never'
+                      }
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Time Since Report:</span>
+                    <span className="ml-2 font-mono text-gray-300">
+                      {deviceInfo?.lastReport
+                        ? `${Math.floor((Date.now() - deviceInfo.lastReport) / 1000)}s ago`
                         : 'N/A'
                       }
                     </span>
