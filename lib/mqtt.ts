@@ -24,7 +24,7 @@ export function getMqttClient(): mqtt.MqttClient {
     client.on('connect', () => {
       console.log('✅ MQTT connected to HiveMQ Cloud');
       // Subscribe to all reported topics
-      client.subscribe('home/+/reported', { qos: 1 }, (err) => {
+      client?.subscribe('home/+/reported', { qos: 1 }, (err) => {
         if (err) {
           console.error('❌ Failed to subscribe to reported topics:', err);
         } else {

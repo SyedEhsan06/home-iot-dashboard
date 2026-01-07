@@ -29,6 +29,7 @@ interface DeviceInfo {
   ip?: string;
   uptime?: number;
   lastReport?: number;
+  status?: string;
 }
 
 const DEVICE_ID = 'room1'; // Default device
