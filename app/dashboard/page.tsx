@@ -7,7 +7,7 @@ import { EnvironmentHero } from '@/components/EnvironmentHero';
 import { LiveAudioPanel } from '@/components/LiveAudioPanel';
 import { SensorGrid } from '@/components/SensorGrid';
 import { BottomNavigation } from '@/components/BottomNavigation';
-import { Activity, LogOut, Settings } from 'lucide-react';
+import { Activity, LogOut, Settings, RefreshCw, Loader2 } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -47,7 +47,27 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isPinging, setIsPinging] = useState(false);
   
+  const handlePing = async () => {
+    if (!status?.online) {
+      toast.error('Device is offline');
+      return;
+    }
+    setIsPinging(true);
+    try {
+      const res = await fetch(`/api/device/${DEVICE_ID}/ping`, { method: 'POST' });
+      if (res.ok) {
+        toast.success('Ping sent successfully', { className: 'bg-card text-card-foreground border-border' });
+      } else {
+        toast.error('Failed to send ping');
+      }
+    } catch (err) {
+      toast.error('Error sending ping');
+    } finally {
+      setIsPinging(false);
+    }
+  };
   useEffect(() => {
     // Force dark theme as requested for the premium look
     if (theme !== 'dark') {
@@ -128,6 +148,9 @@ export default function DashboardPage() {
             <div className={`w-2 h-2 rounded-full ${status.online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`} />
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handlePing} disabled={isPinging || !status?.online} className="rounded-full" title="Ping Device">
+              {isPinging ? <Loader2 className="w-5 h-5 text-primary animate-spin" /> : <RefreshCw className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />}
+            </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-full">
               <LogOut className="w-5 h-5 text-muted-foreground" />
             </Button>
