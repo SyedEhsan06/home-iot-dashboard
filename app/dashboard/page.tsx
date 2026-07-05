@@ -137,7 +137,7 @@ export default function DashboardPage() {
       <Toaster theme="dark" position="top-center" />
       
       {/* Top Header - Visible on all screens */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
         <div className="container mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Ehsan's Room Logo" className="w-8 h-8 rounded-[10px] shadow-sm shadow-primary/20" />
