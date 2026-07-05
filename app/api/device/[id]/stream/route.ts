@@ -20,6 +20,7 @@ export async function GET(
   getMqttClient();
 
   let isClosed = false;
+  let interval: NodeJS.Timeout;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -36,6 +37,8 @@ export async function GET(
             getDeviceNames(deviceId),
           ]);
           
+          if (isClosed) return; // Check again after async operations
+          
           const data = {
             deviceId,
             desired,
@@ -46,8 +49,11 @@ export async function GET(
           };
           
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-        } catch (error) {
-          console.error('SSE Error:', error);
+        } catch (error: any) {
+          // Ignore errors if stream is closed
+          if (!isClosed && error.code !== 'ERR_INVALID_STATE' && !error.message?.includes('Controller is already closed')) {
+            console.error('SSE Error:', error);
+          }
         }
       };
 
@@ -55,7 +61,7 @@ export async function GET(
       await sendStatus();
       
       // Poll every 3 seconds on the server
-      const interval = setInterval(sendStatus, 3000);
+      interval = setInterval(sendStatus, 3000);
 
       // Handle client disconnect
       request.signal.addEventListener('abort', () => {
@@ -65,6 +71,7 @@ export async function GET(
     },
     cancel() {
       isClosed = true;
+      clearInterval(interval);
     }
   });
 

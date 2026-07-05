@@ -50,10 +50,6 @@ export default function DashboardPage() {
   const [isPinging, setIsPinging] = useState(false);
   
   const handlePing = async () => {
-    if (!status?.online) {
-      toast.error('Device is offline');
-      return;
-    }
     setIsPinging(true);
     try {
       const res = await fetch(`/api/device/${DEVICE_ID}/ping`, { method: 'POST' });
@@ -144,11 +140,12 @@ export default function DashboardPage() {
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
         <div className="container mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight">Smart Room</h1>
+            <img src="/logo.png" alt="Ehsan's Room Logo" className="w-8 h-8 rounded-[10px] shadow-sm shadow-primary/20" />
+            <h1 className="text-xl font-bold tracking-tight">Ehsan's Room</h1>
             <div className={`w-2 h-2 rounded-full ${status.online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`} />
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handlePing} disabled={isPinging || !status?.online} className="rounded-full" title="Ping Device">
+            <Button variant="ghost" size="icon" onClick={handlePing} disabled={isPinging} className="rounded-full" title="Ping Device">
               {isPinging ? <Loader2 className="w-5 h-5 text-primary animate-spin" /> : <RefreshCw className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />}
             </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-full">
