@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { isAuthenticated } from './lib/auth';
 
 // Protected routes that require authentication
-const protectedRoutes = ['/dashboard'];
+const protectedRoutes = ['/dashboard', '/api/device'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

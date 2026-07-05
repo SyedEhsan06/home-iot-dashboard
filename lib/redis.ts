@@ -95,17 +95,15 @@ export async function isDeviceOnline(deviceId: string): Promise<boolean> {
     if (deviceInfo && deviceInfo.lastReport) {
       const now = Date.now();
       const timeSinceLastReport = now - deviceInfo.lastReport;
-      const threshold = 30 * 1000; // 30 seconds (device reports immediately on commands)
+      const threshold = 5 * 60 * 1000; // 5 minutes threshold to prevent false offline
 
       const isOnline = timeSinceLastReport < threshold;
-      console.log(`🔍 Device ${deviceId}: Last report ${timeSinceLastReport}ms ago, Threshold: ${threshold}ms, Online: ${isOnline}`);
       return isOnline;
     }
 
     // Fallback: check if device has active online status (MQTT-based)
     const onlineStatus = await redis.get(`device:${deviceId}:online`);
     if (onlineStatus === 'true') {
-      console.log(`🔍 Device ${deviceId}: Online (TTL active)`);
       return true;
     }
 
@@ -113,15 +111,13 @@ export async function isDeviceOnline(deviceId: string): Promise<boolean> {
     const reported = await getReportedState(deviceId);
     if (reported && reported.lastSeen) {
       const now = Date.now();
-      const threshold = 30 * 1000; // 30 seconds
+      const threshold = 5 * 60 * 1000; // 5 minutes
       const timeSince = now - reported.lastSeen;
 
       const isOnline = timeSince < threshold;
-      console.log(`🔍 Device ${deviceId}: Last seen ${timeSince}ms ago, Online: ${isOnline}`);
       return isOnline;
     }
 
-    console.log(`🔍 Device ${deviceId}: Offline (no recent activity)`);
     return false;
   } catch (error) {
     console.error(`Error checking device online status:`, error);
@@ -147,4 +143,22 @@ export async function initializeDevice(deviceId: string): Promise<void> {
     
     await setDesiredState(deviceId, defaultState);
   }
+}
+
+// Get custom names for relays
+export async function getDeviceNames(deviceId: string): Promise<Record<string, string>> {
+  const names = await redis.get<Record<string, string>>(`device:${deviceId}:names`);
+  return names || {
+    '1': 'Relay 1',
+    '2': 'Relay 2',
+    '3': 'Relay 3',
+    '4': 'Relay 4',
+  };
+}
+
+// Set custom name for a specific relay
+export async function setDeviceName(deviceId: string, relayId: string, name: string): Promise<void> {
+  const names = await getDeviceNames(deviceId);
+  names[relayId] = name;
+  await redis.set(`device:${deviceId}:names`, names);
 }

@@ -42,9 +42,10 @@ export function getMqttClient(): mqtt.MqttClient {
           
           console.log(`📡 MQTT report from ${deviceId}:`, payload);
           
-          // Update reported state in Redis
+          // Update reported state in Redis, preserving relays if omitted in heartbeat
+          const existingReported = await redis.get(`device:${deviceId}:reported`) as any;
           await setReportedState(deviceId, {
-            relays: payload.relays || {},
+            relays: payload.relays || existingReported?.relays || {},
             lastSeen: Date.now(),
           });
           
@@ -102,6 +103,8 @@ export function publishDesiredState(deviceId: string, state: DesiredState): Prom
 }
 
 // Subscribe to reported state from device
+// Note: We keep this for compatibility, but the main getMqttClient() 
+// already handles incoming messages and updates Redis automatically.
 export function subscribeToReported(deviceId: string, callback: (state: any) => void): void {
   const mqttClient = getMqttClient();
   const topic = `home/${deviceId}/reported`;
@@ -114,16 +117,23 @@ export function subscribeToReported(deviceId: string, callback: (state: any) => 
     }
   });
 
-  mqttClient.on('message', (receivedTopic: string, message: Buffer) => {
-    if (receivedTopic === topic) {
-      try {
-        const state = JSON.parse(message.toString());
-        callback(state);
-      } catch (error) {
-        console.error('❌ Failed to parse MQTT message:', error);
+  // Check if we already added a listener for this specific topic and callback
+  // To avoid memory leak, we attach only one global listener in getMqttClient
+  // which updates Redis. The callback here is mostly for real-time scripts
+  // We'll use a Set to track if we've added a listener to avoid stacking
+  if (!(mqttClient as any)._hasReportedListener) {
+    (mqttClient as any)._hasReportedListener = true;
+    mqttClient.on('message', (receivedTopic: string, message: Buffer) => {
+      if (receivedTopic.endsWith('/reported')) {
+        try {
+          const state = JSON.parse(message.toString());
+          callback(state);
+        } catch (error) {
+          console.error('❌ Failed to parse MQTT message:', error);
+        }
       }
-    }
-  });
+    });
+  }
 }
 
 // Close MQTT connection

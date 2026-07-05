@@ -1,6 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Lightbulb, Fan, Plug, Power, Zap, Loader2, Edit2 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface Relay {
   id: number;
@@ -12,139 +27,211 @@ interface RelayControlProps {
   relays: Relay[];
   deviceId: string;
   online: boolean;
-  onUpdate: () => void;
 }
 
 export default function RelayControl({
   relays,
   deviceId,
   online,
-  onUpdate,
 }: RelayControlProps) {
   const [loading, setLoading] = useState<number | null>(null);
+  
+  // State for Rename Dialog
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [activeRelayToRename, setActiveRelayToRename] = useState<Relay | null>(null);
+  const [newRelayName, setNewRelayName] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
 
-  const handleToggle = async (relay: Relay) => {
-    if (loading !== null) return; // Only disable during loading
+  const handleToggle = async (relayId: number, currentState: boolean) => {
+    if (!online) {
+      toast.info('Sending signal...', { description: 'Attempting to wake device and send command.' });
+    }
+    
+    if (loading !== null) return;
 
-    setLoading(relay.id);
+    setLoading(relayId);
+    const newState = !currentState;
 
     try {
       const response = await fetch(`/api/device/${deviceId}/command`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          relay: relay.id,
-          state: !relay.state,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relay: relayId, state: newState }),
       });
 
       if (response.ok) {
-        // Wait a moment for state to propagate
-        setTimeout(onUpdate, 500);
+        toast.success(`${relays.find(r => r.id === relayId)?.name} turned ${newState ? 'ON' : 'OFF'}`, {
+          className: 'bg-card text-card-foreground border-border',
+        });
       } else {
-        console.error('Failed to toggle relay');
+        throw new Error('Failed to toggle');
       }
     } catch (error) {
       console.error('Error toggling relay:', error);
+      toast.error(`Failed to toggle Relay ${relayId}`);
     } finally {
       setLoading(null);
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-      {relays.map((relay) => (
-        <div
-          key={relay.id}
-          className={`relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-            relay.state
-              ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/50 shadow-xl shadow-blue-500/20'
-              : 'bg-gray-900/50 border-gray-700'
-          } ${
-            loading !== null
-              ? 'opacity-50 cursor-not-allowed'
-              : 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
-          }`}
-          onClick={() => handleToggle(relay)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div
-                className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all ${
-                  relay.state
-                    ? 'bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/50'
-                    : 'bg-gray-800'
-                }`}
-              >
-                {loading === relay.id ? (
-                  <svg
-                    className="animate-spin h-6 w-6 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    className={`w-7 h-7 transition-all ${
-                      relay.state ? 'text-white' : 'text-gray-500'
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                )}
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">
-                  {relay.name}
-                </h3>
-                <p className={`text-sm font-semibold ${
-                  relay.state ? 'text-blue-400' : 'text-gray-500'
-                }`}>
-                  {relay.state ? '● ON' : '○ OFF'}
-                </p>
-              </div>
-            </div>
+  const handleSaveName = async () => {
+    if (!activeRelayToRename || !newRelayName.trim()) return;
+    
+    setIsRenaming(true);
+    try {
+      const response = await fetch(`/api/device/${deviceId}/name`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relayId: activeRelayToRename.id, name: newRelayName.trim() }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to save name');
+      
+      toast.success('Name updated successfully', {
+        className: 'bg-card text-card-foreground border-border',
+      });
+      setIsRenameOpen(false);
+    } catch (error) {
+      console.error('Error saving name:', error);
+      toast.error('Failed to update name');
+    } finally {
+      setIsRenaming(false);
+    }
+  };
 
-            {loading !== relay.id && (
-              <div
-                className={`relative inline-flex h-10 w-18 items-center rounded-full transition-colors ${
-                  relay.state ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : 'bg-gray-700'
-                }`}
-              >
-                <span
-                  className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform shadow-lg ${
-                    relay.state ? 'translate-x-9' : 'translate-x-1'
-                  }`}
-                />
-              </div>
-            )}
+  const getIcon = (id: number) => {
+    const props = { className: "w-7 h-7" };
+    switch (id) {
+      case 1: return <Lightbulb {...props} />;
+      case 2: return <Fan {...props} />;
+      case 3: return <Plug {...props} />;
+      case 4: return <Zap {...props} />;
+      default: return <Power {...props} />;
+    }
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {relays.map((relay) => {
+          const isLoading = loading === relay.id;
+          
+          return (
+            <Card 
+              key={relay.id} 
+              className={`relative overflow-hidden rounded-3xl transition-all duration-500 border backdrop-blur-2xl group ${
+                relay.state 
+                  ? 'bg-card/90 border-primary/40 shadow-xl shadow-primary/10' 
+                  : 'bg-card/50 border-border hover:bg-card/80 hover:border-border/80 shadow-sm hover:shadow-md'
+              }`}
+            >
+              {/* Animated background glow for active state */}
+              {relay.state && (
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-400 opacity-10 blur-xl transition-all duration-500 group-hover:opacity-20" />
+              )}
+
+              <CardContent className="p-6 h-full flex flex-col justify-between min-h-[180px] relative z-10">
+                <div className="flex justify-between items-start">
+                  <div className={`p-4 rounded-2xl transition-all duration-500 shadow-lg ${
+                    relay.state 
+                      ? 'bg-primary text-primary-foreground shadow-primary/30 scale-110' 
+                      : 'bg-muted text-muted-foreground group-hover:text-foreground'
+                  }`}>
+                    {isLoading ? (
+                      <Loader2 className="w-7 h-7 animate-spin" />
+                    ) : (
+                      getIcon(relay.id)
+                    )}
+                  </div>
+                  
+                  <Switch 
+                    checked={relay.state}
+                    disabled={loading !== null}
+                    onCheckedChange={() => handleToggle(relay.id, relay.state)}
+                    className={`scale-110 data-[state=checked]:bg-primary shadow-xl ${
+                      relay.state ? 'shadow-primary/30' : 'bg-muted'
+                    }`}
+                  />
+                </div>
+                
+                <div className="mt-8 flex justify-between items-end">
+                  <div>
+                    <h3 className={`text-xl font-semibold tracking-tight transition-colors duration-500 ${
+                      relay.state ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+                    }`}>
+                      {relay.name}
+                    </h3>
+                    <p className={`text-sm font-medium mt-1 tracking-wide transition-colors duration-500 ${
+                      relay.state ? 'text-primary' : 'text-muted-foreground group-hover:text-muted-foreground'
+                    }`}>
+                      {relay.state ? 'ON' : 'OFF'}
+                    </p>
+                  </div>
+                  
+                  {/* Edit Button */}
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-background/50 hover:bg-muted"
+                    onClick={() => {
+                      setActiveRelayToRename(relay);
+                      setNewRelayName(relay.name);
+                      setIsRenameOpen(true);
+                    }}
+                  >
+                    <Edit2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="sr-only">Edit name</span>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Rename Dialog */}
+      <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl bg-card border-border p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Rename Device</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-6">
+            <div className="grid gap-2">
+              <Label htmlFor="name" className="text-muted-foreground">
+                Give this switch a friendly name (e.g., "Living Room Fan")
+              </Label>
+              <Input
+                id="name"
+                value={newRelayName}
+                onChange={(e) => setNewRelayName(e.target.value)}
+                className="col-span-3 text-lg h-12 bg-background border-border rounded-xl focus-visible:ring-primary"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveName();
+                }}
+              />
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsRenameOpen(false)}
+              className="rounded-xl border-border bg-transparent hover:bg-muted"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleSaveName} 
+              disabled={isRenaming || !newRelayName.trim() || newRelayName === activeRelayToRename?.name}
+              className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 min-w-[100px]"
+            >
+              {isRenaming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

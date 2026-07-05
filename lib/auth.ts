@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 const AUTH_COOKIE_NAME = 'iot_auth';
-const APP_PIN = process.env.APP_PIN || '1234';
+const APP_PIN = process.env.APP_PIN;
 
 // Verify PIN
 export function verifyPin(pin: string): boolean {
+  if (!APP_PIN) {
+    console.error('APP_PIN environment variable is not set!');
+    return false;
+  }
   return pin === APP_PIN;
 }
 
