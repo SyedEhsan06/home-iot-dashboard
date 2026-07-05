@@ -119,26 +119,21 @@ export default function RelayControl({
           return (
             <Card 
               key={relay.id} 
-              className={`relative overflow-hidden rounded-3xl transition-all duration-500 border backdrop-blur-2xl group ${
+              className={`relative overflow-hidden rounded-[2rem] transition-all duration-300 border backdrop-blur-2xl group ${
                 relay.state 
-                  ? 'bg-card/90 border-primary/40 shadow-xl shadow-primary/10' 
-                  : 'bg-card/50 border-border hover:bg-card/80 hover:border-border/80 shadow-sm hover:shadow-md'
+                  ? 'bg-card/90 border-primary/40 shadow-xl shadow-primary/5' 
+                  : 'bg-card/40 border-border hover:bg-card/60 shadow-none'
               }`}
             >
-              {/* Animated background glow for active state */}
-              {relay.state && (
-                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-400 opacity-10 blur-xl transition-all duration-500 group-hover:opacity-20" />
-              )}
-
-              <CardContent className="p-6 h-full flex flex-col justify-between min-h-[180px] relative z-10">
+              <CardContent className="p-6 h-full flex flex-col justify-between min-h-[160px] relative z-10">
                 <div className="flex justify-between items-start">
-                  <div className={`p-4 rounded-2xl transition-all duration-500 shadow-lg ${
+                  <div className={`p-4 rounded-[1.5rem] transition-all duration-300 ${
                     relay.state 
-                      ? 'bg-primary text-primary-foreground shadow-primary/30 scale-110' 
-                      : 'bg-muted text-muted-foreground group-hover:text-foreground'
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted/50 text-muted-foreground group-hover:bg-muted'
                   }`}>
                     {isLoading ? (
-                      <Loader2 className="w-7 h-7 animate-spin" />
+                      <Loader2 className="w-6 h-6 animate-spin" />
                     ) : (
                       getIcon(relay.id)
                     )}

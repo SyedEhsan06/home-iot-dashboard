@@ -3,14 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import RelayControl from '@/components/RelayControl';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { LogOut, Activity, Wifi, Server, Sparkles } from 'lucide-react';
+import { EnvironmentHero } from '@/components/EnvironmentHero';
+import { LiveAudioPanel } from '@/components/LiveAudioPanel';
+import { SensorGrid } from '@/components/SensorGrid';
+import { BottomNavigation } from '@/components/BottomNavigation';
+import { Activity, LogOut, Settings } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useTheme } from 'next-themes';
+import { Button } from '@/components/ui/button';
 
 interface Relay {
   id: number;
@@ -27,13 +29,17 @@ interface DeviceStatus {
   } | null;
   reported: {
     relays: Record<string, boolean>;
+    temperature?: number;
+    humidity?: number;
+    lux?: number;
+    audioActive?: boolean;
     lastSeen: number;
   } | null;
   online: boolean;
   lastSeen: number | null;
 }
 
-const DEVICE_ID = 'room1'; // Default device
+const DEVICE_ID = 'room1';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -43,8 +49,12 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
+    // Force dark theme as requested for the premium look
+    if (theme !== 'dark') {
+      document.documentElement.classList.add('dark');
+    }
     setMounted(true);
-  }, []);
+  }, [theme]);
 
   // Real-time SSE Connection
   useEffect(() => {
@@ -81,30 +91,17 @@ export default function DashboardPage() {
   const relays: Relay[] = status?.desired
     ? Object.entries(status.desired.relays).map(([id, state]) => ({
         id: Number(id),
-        // If names exist in stream data, we can use them later. For now default:
         name: (status as any).names?.[id] || `Relay ${id}`, 
         state,
       }))
     : [];
 
-  const timeSince = (timestamp: number | null) => {
-    if (!timestamp) return 'Never';
-    const seconds = Math.floor((Date.now() - timestamp) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    return `${Math.floor(seconds / 3600)}h ago`;
-  };
-
   if (!status) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-8 relative overflow-hidden transition-colors duration-500">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-background to-background transition-colors duration-500" />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-8">
         <div className="relative z-10 flex flex-col items-center">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary blur-3xl opacity-20 rounded-full animate-pulse" />
-            <div className="bg-card/80 p-6 rounded-3xl border border-border shadow-2xl backdrop-blur-xl">
-              <Activity className="w-12 h-12 text-primary animate-pulse" />
-            </div>
+          <div className="bg-card/80 p-6 rounded-3xl border shadow-2xl">
+            <Activity className="w-12 h-12 text-primary animate-pulse" />
           </div>
           <p className="text-muted-foreground font-medium tracking-wide mt-6 animate-pulse">Syncing Network...</p>
         </div>
@@ -112,139 +109,122 @@ export default function DashboardPage() {
     );
   }
 
-  const isDark = mounted ? theme === 'dark' : true;
-
-  const handlePing = async () => {
-    try {
-      toast.info('Pinging device...', { description: 'Waiting for response.' });
-      await fetch(`/api/device/${DEVICE_ID}/ping`, { method: 'POST' });
-    } catch (err) {
-      toast.error('Failed to ping device');
-    }
-  };
+  const reported = status.reported;
+  // Mock data for display if not provided by backend yet
+  const temperature = reported?.temperature ?? 24.6;
+  const humidity = reported?.humidity ?? 45;
+  const lux = reported?.lux ?? 320;
+  const audioActive = reported?.audioActive ?? false;
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative overflow-hidden font-sans selection:bg-primary/30 transition-colors duration-500">
+    <div className="min-h-screen bg-background text-foreground pb-24 md:pb-12 selection:bg-primary/30">
+      <Toaster theme="dark" position="top-center" />
       
-      {/* Background Meshes / Glowing Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-blue-500/10 blur-[150px] pointer-events-none" />
-      
-      <Toaster theme={isDark ? "dark" : "light"} position="bottom-right" />
-      
-      <div className="container mx-auto px-4 py-12 max-w-5xl relative z-10">
-        
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border text-xs font-medium text-primary mb-4 shadow-sm backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5" />
-              Smart Home
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">
-              Command Center
-            </h1>
-            <p className="text-muted-foreground text-lg">Control your environment in real-time</p>
-          </div>
+      {/* Top Header - Visible on all screens */}
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="container mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <Button 
-              variant="outline" 
-              onClick={handleLogout} 
-              className="rounded-xl border-border bg-card/50 hover:bg-accent text-foreground backdrop-blur-md transition-all hover:scale-105 active:scale-95"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+            <h1 className="text-xl font-bold tracking-tight">Smart Room</h1>
+            <div className={`w-2 h-2 rounded-full ${status.online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-full">
+              <LogOut className="w-5 h-5 text-muted-foreground" />
             </Button>
           </div>
         </div>
+      </div>
 
+      <div className="container mx-auto px-4 lg:px-8 py-6 max-w-7xl">
         {error && (
-          <div className="bg-destructive/10 backdrop-blur-xl border border-destructive/20 rounded-2xl p-4 mb-8 text-sm text-destructive flex items-center shadow-lg shadow-destructive/5">
+          <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-4 mb-6 text-sm text-destructive flex items-center">
             <Activity className="w-5 h-5 mr-3 animate-pulse" />
             <span className="font-medium">{error}</span>
           </div>
         )}
 
-        {/* Premium Device Overview Card */}
-        <Card className="bg-card/60 backdrop-blur-2xl border-border rounded-[2rem] mb-12 overflow-hidden relative shadow-xl transition-colors duration-500">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-blue-400 to-primary opacity-80" />
+        {/* 12-Column Desktop Grid / Single-Column Mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
           
-          <CardHeader className="p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-              <div className="flex items-center gap-5">
-                <div className="p-4 bg-background/50 rounded-2xl border border-border shadow-inner">
-                  <Server className="w-8 h-8 text-primary" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <CardTitle className="text-2xl font-bold tracking-tight">
-                      {DEVICE_ID.toUpperCase()}
-                    </CardTitle>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handlePing}
-                      className="h-7 rounded-lg text-xs border-border bg-background/50 hover:bg-muted"
-                    >
-                      Ping
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Badge 
-                      variant="outline" 
-                      className={`px-3 py-1 border-0 backdrop-blur-md ${
-                        status.online 
-                          ? "bg-green-500/20 text-green-600 dark:text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.15)]" 
-                          : "bg-destructive/20 text-destructive"
-                      }`}
-                    >
-                      {status.online ? (
-                        <><Wifi className="w-3.5 h-3.5 mr-1.5 animate-pulse" /> Online</>
-                      ) : (
-                        <><Wifi className="w-3.5 h-3.5 mr-1.5" /> Offline</>
-                      )}
-                    </Badge>
-                    <span className="text-sm font-medium text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
-                      Last ping: {timeSince(status.lastSeen)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="sm:text-right bg-background/50 px-6 py-4 rounded-2xl border border-border">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Active Circuits</p>
-                <div className="flex items-baseline sm:justify-end gap-1">
-                  <span className="text-3xl font-bold">{relays.filter(r => r.state).length}</span>
-                  <span className="text-xl font-medium text-muted-foreground">/ {relays.length}</span>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
+          {/* LEFT / MAIN COLUMN (Environment, Sensors, Devices) */}
+          <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-6">
+            
+            <EnvironmentHero 
+              temperature={temperature}
+              humidity={humidity}
+              lux={lux}
+              lastUpdated={status.lastSeen}
+              online={status.online}
+            />
 
-        {/* Relays Grid */}
-        <div className="mb-6 flex justify-between items-end">
-          <h2 className="text-2xl font-bold tracking-tight">
-            Devices
-          </h2>
-        </div>
+            <SensorGrid 
+              temperature={temperature}
+              humidity={humidity}
+              lux={lux}
+              online={status.online}
+            />
 
-        {relays.length > 0 ? (
-          <RelayControl
-            relays={relays}
-            deviceId={DEVICE_ID}
-            online={status.online}
-          />
-        ) : (
-          <div className="bg-card/60 backdrop-blur-2xl border border-border rounded-[2rem] p-16 flex flex-col items-center justify-center text-center shadow-xl">
-            <div className="bg-background/50 p-6 rounded-full mb-6 border border-border">
-              <Server className="w-12 h-12 text-muted-foreground" />
+            <div>
+              <h2 className="text-xl font-bold tracking-tight mb-4 mt-2">Devices</h2>
+              {relays.length > 0 ? (
+                <RelayControl
+                  relays={relays}
+                  deviceId={DEVICE_ID}
+                  online={status.online}
+                />
+              ) : (
+                <div className="bg-card/40 border rounded-[2rem] p-12 text-center">
+                  <p className="text-muted-foreground">No devices configured.</p>
+                </div>
+              )}
             </div>
-            <h3 className="text-xl font-semibold mb-2">No Devices Found</h3>
-            <p className="text-muted-foreground max-w-sm">There are no relays configured for this hub yet. Please check your device configuration.</p>
+            
           </div>
-        )}
+
+          {/* RIGHT COLUMN (Audio, Activity) */}
+          <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6">
+            
+            <LiveAudioPanel 
+              online={status.online}
+              audioActive={audioActive}
+            />
+
+            {/* Activity/Events Section */}
+            <div className="bg-card/40 border rounded-[2.5rem] p-6 lg:sticky lg:top-24">
+              <h3 className="text-lg font-bold tracking-tight mb-6 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-muted-foreground" />
+                Recent Activity
+              </h3>
+              
+              <div className="space-y-6">
+                {[
+                  { title: 'ESP32 Connected', time: 'Just now', type: 'system' },
+                  { title: 'Relay 1 turned ON', time: '5m ago', type: 'device' },
+                  { title: 'Room conditions updated', time: '12m ago', type: 'sensor' },
+                  { title: 'Audio session ended', time: '1h ago', type: 'audio' },
+                ].map((event, idx) => (
+                  <div key={idx} className="flex gap-4 relative">
+                    {/* Timeline line */}
+                    {idx !== 3 && <div className="absolute left-2.5 top-8 bottom-[-16px] w-px bg-border" />}
+                    
+                    <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center shrink-0 z-10 mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{event.title}</p>
+                      <p className="text-xs text-muted-foreground">{event.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
       </div>
+
+      <BottomNavigation />
     </div>
   );
 }

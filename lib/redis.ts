@@ -19,6 +19,10 @@ export interface DesiredState {
 
 export interface ReportedState {
   relays: RelayState;
+  temperature?: number;
+  humidity?: number;
+  lux?: number;
+  audioActive?: boolean;
   lastSeen: number;
 }
 
